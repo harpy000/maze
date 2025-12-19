@@ -8,8 +8,6 @@
 
 **Project Title:** Interactive Web-Based Maze Pathfinding System Using A* Search Algorithm
 
-**Duration:** 1 Day Development Cycle
-
 **Technology Stack:** HTML5, CSS3, JavaScript (ES6+)
 
 **Objective:** To implement and analyze the A* pathfinding algorithm through an interactive web application that demonstrates intelligent maze navigation with real-time visualization and performance analysis.
@@ -554,5 +552,6 @@ The web-based approach offers significant advantages in terms of accessibility, 
 The single-file implementation ensures portability and ease of use, while the comprehensive visualization and performance metrics provide deep insight into algorithm behavior. This project successfully bridges theoretical computer science concepts with practical, interactive application development.
 
 ---
+
 
 **Prepared By:** SATURN team   

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pathfinding Algorithms Comparison</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            font-family: Segoe UI, Tahoma, sans-serif;
+            background: #f5f5f5;
+            max-width: 1200px;
+            margin: auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .controls, .maze-container, .results {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .control-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            width: 200px;
+            display: inline-block;
+            font-weight: bold;
+        }
+
+        select, button {
+            padding: 8px 14px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #4CAF50;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        canvas {
+            border: 2px solid #333;
+            display: block;
+            margin: auto;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #f9f9f9;
+            margin-bottom: 6px;
+        }
+
+        .ascii {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 12px;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 900px) {
+            .content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Pathfinding Algorithms (A* / BFS / Greedy Diagonal)</h1>
+
+<div class="controls">
+
+    <div class="control-group">
+        <label>Algorithm:</label>
+        <select id="algorithm">
+            <option value="astar" selected>A*</option>
+            <option value="bfs">Breadth-First Search</option>
+            <option value="greedy">Greedy Best-First (Diagonal)</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Maze Size:</label>
+        <select id="mazeSize">
+            <option value="10">10 x 10</option>
+            <option value="20" selected>20 x 20</option>
+            <option value="30">30 x 30</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Obstacle Density:</label>
+        <select id="density">
+            <option value="0.2">20%</option>
+            <option value="0.3" selected>30%</option>
+            <option value="0.4">40%</option>
+        </select>
+    </div>
+
+    <button onclick="generateMaze()">Generate Maze</button>
+    <button onclick="runSelected()">Run Algorithm</button>
+
+</div>
+
+<div class="content">
+
+    <div class="maze-container">
+        <h3>Maze</h3>
+        <canvas id="canvas" width="500" height="500"></canvas>
+    </div>
+
+    <div class="results">
+        <h3>Results</h3>
+
+        <div id="stats" style="display:none;">
+            <div class="stat"><span>Path Found</span><span id="found"></span></div>
+            <div class="stat"><span>Path Length</span><span id="length"></span></div>
+            <div class="stat"><span>Nodes Explored</span><span id="explored"></span></div>
+            <div class="stat"><span>Time</span><span id="time"></span></div>
+        </div>
+
+        <h3>ASCII Output</h3>
+        <div id="ascii" class="ascii"></div>
+    </div>
+
+</div>
+
+<script>
+    let maze = [];
+    let rows = 20, cols = 20;
+    let start, goal;
+    let path = [];
+    let visited = [];
+
+    class PriorityQueue {
+        constructor() { this.items = []; }
+        enqueue(item, priority) {
+            this.items.push({ item, priority });
+            this.items.sort((a, b) => a.priority - b.priority);
+        }
+        dequeue() { return this.items.shift()?.item; }
+        isEmpty() { return this.items.length === 0; }
+    }
+
+    function generateMaze() {
+        rows = cols = parseInt(document.getElementById('mazeSize').value);
+        const density = parseFloat(document.getElementById('density').value);
+
+        maze = [];
+        for (let y = 0; y < rows; y++) {
+            maze[y] = [];
+            for (let x = 0; x < cols; x++) {
+                maze[y][x] = Math.random() < density ? 1 : 0;
+            }
+        }
+
+        start = { x: 1, y: 1 };
+        goal = { x: cols - 2, y: rows - 2 };
+        maze[start.y][start.x] = 0;
+        maze[goal.y][goal.x] = 0;
+
+        path = [];
+        visited = [];
+        draw();
+        updateASCII();
+        document.getElementById('stats').style.display = 'none';
+    }
+
+    function manhattan(a, b) {
+        return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+    }
+
+    function diagonal(a, b) {
+        const dx = Math.abs(a.x - b.x);
+        const dy = Math.abs(a.y - b.y);
+        const d = Math.min(dx, dy);
+        return d * Math.SQRT2 + (Math.max(dx, dy) - d);
+    }
+
+    function neighbors(n) {
+        const dirs = [
+            {x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}
+        ];
+        return dirs
+            .map(d => ({ x: n.x + d.x, y: n.y + d.y }))
+            .filter(p =>
+                p.x >= 0 && p.x < cols &&
+                p.y >= 0 && p.y < rows &&
+                maze[p.y][p.x] === 0
+            );
+    }
+
+    function runSelected() {
+        const algo = document.getElementById('algorithm').value;
+        if (algo === 'astar') runAStar();
+        else if (algo === 'bfs') runBFS();
+        else runGreedy();
+    }
+
+    /* ===================== A* ===================== */
+    function runAStar() {
+        const startTime = performance.now();
+        path = [];
+        visited = [];
+
+        const open = new PriorityQueue();
+        const cameFrom = new Map();
+        const g = new Map();
+        const closed = new Set();
+
+        const sk = `${start.x},${start.y}`;
+        g.set(sk, 0);
+        open.enqueue(start, manhattan(start, goal));
+
+        let explored = 0;
+
+        while (!open.isEmpty()) {
+            const cur = open.dequeue();
+            const ck = `${cur.x},${cur.y}`;
+            if (closed.has(ck)) continue;
+            closed.add(ck);
+
+            visited.push(cur);
+            explored++;
+
+            if (cur.x === goal.x && cur.y === goal.y) {
+                reconstruct(cur, cameFrom);
+                finish(true, explored, startTime);
+                return;
+            }
+
+            for (let n of neighbors(cur)) {
+                const nk = `${n.x},${n.y}`;
+                const tg = g.get(ck) + 1;
+                if (!g.has(nk) || tg < g.get(nk)) {
+                    g.set(nk, tg);
+                    cameFrom.set(nk, cur);
+                    open.enqueue(n, tg + manhattan(n, goal));
+                }
+            }
+        }
+
+        finish(false, explored, startTime);
+    }
+
+    /* ===================== BFS ===================== */
+    function runBFS() {
+        const startTime = performance.now();
+        path = [];
+        visited = [];
+
+        const q = [start];
+        const cameFrom = new Map();
+        const seen = new Set([`${start.x},${start.y}`]);
+        let explored = 0;
+
+        while (q.length) {
+            const cur = q.shift();
+            visited.push(cur);
+            explored++;
+
+            if (cur.x === goal.x && cur.y === goal.y) {
+                reconstruct(cur, cameFrom);
+                finish(true, explored, startTime);
+                return;
+            }
+
+            for (let n of neighbors(cur)) {
+                const k = `${n.x},${n.y}`;
+                if (!seen.has(k)) {
+                    seen.add(k);
+                    cameFrom.set(k, cur);
+                    q.push(n);
+                }
+            }
+        }
+
+        finish(false, explored, startTime);
+    }
+
+    /* ===== Greedy Best-First (Diagonal Heuristic) ===== */
+    function runGreedy() {
+        const startTime = performance.now();
+        path = [];
+        visited = [];
+
+        const open = new PriorityQueue();
+        const cameFrom = new Map();
+        const seen = new Set();
+
+        open.enqueue(start, diagonal(start, goal));
+        seen.add(`${start.x},${start.y}`);
+
+        let explored = 0;
+
+        while (!open.isEmpty()) {
+            const cur = open.dequeue();
+            visited.push(cur);
+            explored++;
+
+            if (cur.x === goal.x && cur.y === goal.y) {
+                reconstruct(cur, cameFrom);
+                finish(true, explored, startTime);
+                return;
+            }
+
+            for (let n of neighbors(cur)) {
+                const k = `${n.x},${n.y}`;
+                if (!seen.has(k)) {
+                    seen.add(k);
+                    cameFrom.set(k, cur);
+                    open.enqueue(n, diagonal(n, goal));
+                }
+            }
+        }
+
+        finish(false, explored, startTime);
+    }
+
+    function reconstruct(end, cameFrom) {
+        let cur = end;
+        while (cur) {
+            path.unshift(cur);
+            cur = cameFrom.get(`${cur.x},${cur.y}`);
+        }
+    }
+
+    function finish(found, explored, startTime) {
+        const time = performance.now() - startTime;
+        document.getElementById('stats').style.display = 'block';
+        document.getElementById('found').textContent = found ? 'Yes' : 'No';
+        document.getElementById('length').textContent = found ? path.length : 'N/A';
+        document.getElementById('explored').textContent = explored;
+        document.getElementById('time').textContent = time.toFixed(2) + ' ms';
+        draw();
+        updateASCII();
+    }
+
+    function draw() {
+        const c = document.getElementById('canvas');
+        const ctx = c.getContext('2d');
+        const size = Math.min(500 / cols, 500 / rows);
+
+        c.width = cols * size;
+        c.height = rows * size;
+
+        ctx.clearRect(0,0,c.width,c.height);
+
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (maze[y][x]) {
+                    ctx.fillStyle = 'black';
+                    ctx.fillRect(x*size,y*size,size,size);
+                }
+                ctx.strokeStyle = '#ddd';
+                ctx.strokeRect(x*size,y*size,size,size);
+            }
+        }
+
+        for (let v of visited) {
+            ctx.fillStyle = '#E3F2FD';
+            ctx.fillRect(v.x*size,v.y*size,size,size);
+        }
+
+        for (let p of path) {
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(p.x*size,p.y*size,size,size);
+        }
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(start.x*size,start.y*size,size,size);
+        ctx.fillStyle = '#f44336';
+        ctx.fillRect(goal.x*size,goal.y*size,size,size);
+    }
+
+    function updateASCII() {
+        let s = '';
+        for (let y = 0; y < rows; y++) {
+            for (let x = 0; x < cols; x++) {
+                if (x === start.x && y === start.y) s += 'S ';
+                else if (x === goal.x && y === goal.y) s += 'G ';
+                else if (path.some(p => p.x === x && p.y === y)) s += '* ';
+                else if (maze[y][x]) s += '# ';
+                else s += '. ';
+            }
+            s += '\n';
+        }
+        document.getElementById('ascii').textContent = s;
+    }
+
+    generateMaze();
+</script>
+
+</body>
+</html>

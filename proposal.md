@@ -44,9 +44,6 @@ The project focuses on clarity, correctness, and educational value rather than a
 The system implements three distinct pathfinding algorithms, each representing a different search strategy.
 
 ### 4.1 A* Search Algorithm
-
-- **Type:** Informed, optimal  
-- **Evaluation Function:**  
 - **Heuristic:** Manhattan Distance  
 
 **Characteristics:**
@@ -176,8 +173,74 @@ Possible extensions include:
 
 ---
 
-## 11. Conclusion
+## 11. Algorithm Comparison and Analysis
+
+Although A*, Breadth-First Search, and Greedy Best-First Search all aim to find a path between a start and a goal node, they differ significantly in strategy, efficiency, and solution quality.
+
+### 11.1 High-Level Comparison Table
+
+| Algorithm | Search Type | Heuristic | Optimal | Nodes Explored | Speed |
+|--------|------------|----------|--------|---------------|------|
+| BFS | Uninformed | None | Yes | Very High | Slow |
+| A* | Informed | Manhattan | Yes | Moderate | Medium |
+| Greedy Best-First | Informed | Diagonal | No | Low | Fast |
+
+---
+
+### 11.2 Breadth-First Search (BFS)
+
+**Pros:**
+- Guarantees shortest path in unweighted grids  
+- Simple and predictable behavior  
+
+**Cons:**
+- Explores many unnecessary nodes  
+- High memory usage  
+- Poor performance on large grids  
+
+**Best Use Case:**  
+Baseline comparison and small problem spaces.
+
+---
+
+### 11.3 A* Search Algorithm
+
+**Pros:**
+- Guarantees optimal solution  
+- Efficient node exploration  
+- Widely used in real-world systems  
+
+**Cons:**
+- Depends on heuristic quality  
+- More complex than BFS  
+
+**Best Use Case:**  
+Applications requiring optimal and efficient pathfinding.
+
+---
+
+### 11.4 Greedy Best-First Search
+
+**Pros:**
+- Very fast execution  
+- Explores minimal nodes  
+- Simple heuristic-driven behavior  
+
+**Cons:**
+- Does not guarantee shortest path  
+- Can get trapped in suboptimal routes  
+
+**Best Use Case:**  
+Situations where speed is more important than accuracy.
+
+---
+
+## 12. Conclusion
 
 This project presents a clean, accurate, and educational implementation of three fundamental pathfinding algorithms. By combining visualization, metrics, and direct comparison, it provides a strong foundation for understanding real-world search strategies used in artificial intelligence systems.
 
 The solution is lightweight, extensible, and suitable for both academic and practical demonstrations.
+
+
+- **Type:** Informed, optimal  
+- **Evaluation Function:**  
